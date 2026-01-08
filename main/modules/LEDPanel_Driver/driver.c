@@ -1,15 +1,10 @@
 /*
 driver receives messages from other modules and sends them to the LEDPanel 
 some of the code is from esp-idf examples
+驱动模块接受可读的二维数组并且将其作为图像发送给LED面板
+一部分代码源自于ESP_IDF的官方样例
 -----------------------------------------------------------------------------
 by ChiiAya 20251231
-*/
-
-/*
-LEDPanel:
---------------------------------------------------------------------------->|
-<---------------------------------------------------------------------------|
---------------------------------------------------------------------------->|
 */
 
 #include "driver.h"
@@ -24,30 +19,19 @@ LEDPanel:
 
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define RMT_LED_STRIP_GPIO_NUM      0
-
-#define LEDPanel_Width              32
-#define LEDPanel_Height             8
-#define EXAMPLE_LED_NUMBERS         24
 #define EXAMPLE_CHASE_SPEED_MS      10
 
 static const char *TAG = "driver";
 
 static uint8_t led_strip_pixels[LEDPanel_Height * LEDPanel_Width * 3];
 
-typedef struct {
-    uint8_t x;
-    uint8_t y;
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} pixels_ReadAble;
-//controller
 static rmt_channel_handle_t led_chan = NULL;
 static rmt_encoder_handle_t led_encoder = NULL;
 static rmt_transmit_config_t tx_config = {
     .loop_count = 0, // no transfer loop
 };
 //controller
+
 void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b)
 {
     h %= 360; // h -> [0,360]
@@ -94,7 +78,7 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
     }
 }
 
-static esp_err_t initRMT()
+esp_err_t initRMT()//抄的样例
 {
     ESP_LOGI(TAG, "Initialize RMT peripheral");
     if(led_chan != NULL){
@@ -121,27 +105,37 @@ static esp_err_t initRMT()
     ESP_LOGI(TAG, "Enable RMT TX channel");
     ESP_ERROR_CHECK(rmt_enable(led_chan));
 
-    ESP_LOGI(TAG, "LED Panel ready to receive commands");
+    ESP_LOGI(TAG, "LED PanelDriver ready to receive commands");
     return ESP_OK;
 }
 
-static esp_err_t paintLEDPanel(pixels_ReadAble *pixel)
+esp_err_t paintLEDPanel(ledp_pixel_t pixel[LEDPanel_Height][LEDPanel_Width])//receive pixels接受像素
 {
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
-    uint16_t hue = 0;
-    uint16_t start_rgb = 0;
-
-    //fill the pixels
-    for(int i = 0; i < LEDPanel_Height * LEDPanel_Width; i+=3){
-        led_strip_pixels[i * 3 + 0] = pixel[i].green;
-        led_strip_pixels[i * 3 + 1] = pixel[i].blue;
-        led_strip_pixels[i * 3 + 2] = pixel[i].red;
-    }//incorrect
+    //fill the pixels填充像素
+    int index = 0;
+    for(int i = 0; i < LEDPanel_Height; i++){//为了适配S型走线
+        for(int j = 0; j < LEDPanel_Width; j++){
+            if(i % 2 == 0){
+                led_strip_pixels[index * 3 + 0] = pixel[i][j].green;
+                led_strip_pixels[index * 3 + 1] = pixel[i][j].blue;
+                led_strip_pixels[index * 3 + 2] = pixel[i][j].red;
+            }else{
+                led_strip_pixels[index * 3 + 0] = pixel[i][LEDPanel_Width-1-j].green;
+                led_strip_pixels[index * 3 + 1] = pixel[i][LEDPanel_Width-1-j].blue;
+                led_strip_pixels[index * 3 + 2] = pixel[i][LEDPanel_Width-1-j].red;
+            }
+            index++;
+        }
+    }
+    ESP_LOGI(TAG,"Begin Send A Frame");
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+    ESP_LOGI(TAG,"Send Frame Over");  
+    return ESP_OK;
+    //TaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
     // paint
 
-
+    /*the origin example codes
     while (1) {
         for (int i = 0; i < 3; i++) {
             for (int j = i; j < EXAMPLE_LED_NUMBERS; j += 3) {
@@ -163,10 +157,15 @@ static esp_err_t paintLEDPanel(pixels_ReadAble *pixel)
         }
         start_rgb += 60;
     }
+    the origin example codes
+    */
 }
 
-esp_err_t clearPanel()
+esp_err_t clearPanel()//简单的清屏
 {
     memset(led_strip_pixels, 0, sizeof(led_strip_pixels));
+    ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
+    ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
+    //vTaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
     return ESP_OK;
-}//unfinished
+}
