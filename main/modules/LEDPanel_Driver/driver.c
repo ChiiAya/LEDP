@@ -20,6 +20,7 @@ by ChiiAya 20251231
 #define RMT_LED_STRIP_RESOLUTION_HZ 10000000 // 10MHz resolution, 1 tick = 0.1us (led strip needs a high resolution)
 #define RMT_LED_STRIP_GPIO_NUM      0
 #define EXAMPLE_CHASE_SPEED_MS      10
+#define DEBUG 1
 
 static const char *TAG = "driver";
 
@@ -116,21 +117,35 @@ esp_err_t paintLEDPanel(ledp_pixel_t pixel[LEDPanel_Height][LEDPanel_Width])//re
     for(int i = 0; i < LEDPanel_Height; i++){//为了适配S型走线
         for(int j = 0; j < LEDPanel_Width; j++){
             if(i % 2 == 0){
-                led_strip_pixels[index * 3 + 0] = pixel[i][j].green;
-                led_strip_pixels[index * 3 + 1] = pixel[i][j].blue;
-                led_strip_pixels[index * 3 + 2] = pixel[i][j].red;
+                led_strip_pixels[index * 3 + 0] = pixel[i][j].red;
+                led_strip_pixels[index * 3 + 1] = pixel[i][j].green;
+                led_strip_pixels[index * 3 + 2] = pixel[i][j].blue;
             }else{
-                led_strip_pixels[index * 3 + 0] = pixel[i][LEDPanel_Width-1-j].green;
-                led_strip_pixels[index * 3 + 1] = pixel[i][LEDPanel_Width-1-j].blue;
-                led_strip_pixels[index * 3 + 2] = pixel[i][LEDPanel_Width-1-j].red;
+                led_strip_pixels[index * 3 + 0] = pixel[i][LEDPanel_Width-1-j].red;
+                led_strip_pixels[index * 3 + 1] = pixel[i][LEDPanel_Width-1-j].green;
+                led_strip_pixels[index * 3 + 2] = pixel[i][LEDPanel_Width-1-j].blue;
             }
             index++;
         }
     }
+
+    #ifdef DEBUG
+            //打印缓冲区
+            int index_Debug = 0;
+            for(int i = 0; i < LEDPanel_Height; i++){
+                for(int j = 0; j < LEDPanel_Width; j++){
+                    printf("\033[38;2;%d;%d;%dm", led_strip_pixels[index_Debug*3],led_strip_pixels[index_Debug*3+1],led_strip_pixels[index_Debug*3+2]);
+                    printf("█");
+                    printf("\033[0m");
+                }
+                printf("\n");
+            }
+    #endif
     ESP_LOGI(TAG,"Begin Send A Frame");
     ESP_ERROR_CHECK(rmt_transmit(led_chan, led_encoder, led_strip_pixels, sizeof(led_strip_pixels), &tx_config));
     ESP_ERROR_CHECK(rmt_tx_wait_all_done(led_chan, portMAX_DELAY));
     ESP_LOGI(TAG,"Send Frame Over");  
+
     return ESP_OK;
     //TaskDelay(pdMS_TO_TICKS(EXAMPLE_CHASE_SPEED_MS));
     // paint
