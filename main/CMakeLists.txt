@@ -6,13 +6,16 @@ SRCS
     "modules/Clock_Module/clock.c"
     "modules/Music_Module/fft.c"
     "modules/Music_Module/audio.c"
-
+    "modules/Menu_Module/menu.c"
+    "modules/SmartConfig_Module/smartconfig.c"
 PRIV_REQUIRES 
-    esp_driver_rmt 
-    esp_driver_spi
+    esp_driver_rmt
     esp_driver_gpio
     esp_driver_uart
     esp_driver_i2s
     esp_timer
+    esp_wifi 
+    wpa_supplicant
+    nvs_flash
 INCLUDE_DIRS 
-    "." "modules/Clock_Module" "modules/LEDPanel_Driver" "modules/Music_Module")
+    "." "modules/Clock_Module" "modules/LEDPanel_Driver" "modules/Music_Module" "modules/Menu_Module" "modules/SmartConfig_Module")

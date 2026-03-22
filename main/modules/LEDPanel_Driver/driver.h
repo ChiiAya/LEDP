@@ -9,6 +9,11 @@
 #define LEDPanel_Height   8
 #define FRAME_SIZE        768       
 
+#define PRIORITY_SCREEN_DRIVER  24
+#define PRIORITY_MENU_TASK  20
+#define PRIORITY_DRAWING_TASK  10
+#define PRIORITY_OTHER_TASK  0
+
 /**
  * @brief 初始化 RMT 外设和显示任务，用于驱动 LED 面板
  * 
@@ -53,4 +58,5 @@ esp_err_t submitLEDFrame(const uint8_t *pixels);
  */
 esp_err_t clearPanel(void);
 void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b);
+esp_err_t get_latest_frame(uint8_t *TargetFrame);
 #endif // DRIVER_H_

@@ -23,7 +23,7 @@ by ChiiAya 20251231
 #define EXAMPLE_CHASE_SPEED_MS      10
 //#define DEBUG 1
 
-static const char *TAG = "driver";
+static const char *TAG = "[Driver]";
 
 static uint8_t led_strip_pixels[LEDPanel_Height * LEDPanel_Width * 3];
 static uint8_t frame_buffer[FRAME_QUEUE_SIZE][LEDPanel_Height * LEDPanel_Width * 3];
@@ -169,14 +169,13 @@ esp_err_t initRMT()//抄的样例
     }
 
     // 创建显示任务（优先级可设为 4～5）
-    xTaskCreate(display_task, "led_display", 2048, NULL, 5, &display_task_handle);
+    xTaskCreate(display_task, "led_display", 2048, NULL, PRIORITY_SCREEN_DRIVER, &display_task_handle);
 
     ESP_LOGI(TAG, "LED PanelDriver ready");
 
     return ESP_OK;
 }
 
-// 替代原来的 paintLEDPanel
 esp_err_t submitLEDFrame(const uint8_t *pixels)
 {
     if (!frame_queue) return ESP_ERR_INVALID_STATE;
@@ -195,6 +194,12 @@ esp_err_t submitLEDFrame(const uint8_t *pixels)
 
     write_index = (write_index + 1) % FRAME_QUEUE_SIZE;
     return ESP_OK;
+}
+
+esp_err_t get_latest_frame(uint8_t *TargetFrame)//MUST have enough space
+{
+    if (!frame_queue) return ESP_ERR_INVALID_STATE;
+    return xQueuePeek(frame_queue, TargetFrame, 0);
 }
 
 esp_err_t clearPanel()//简单的清屏

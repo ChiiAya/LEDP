@@ -18,8 +18,9 @@
 #include "fft.h"
 #include "audio.h"
 #include "esp_task_wdt.h"
+#include "driver.h"
 
-static const char *TAG = "audio";
+static const char *TAG = "[Audio]";
 #define SAMPLE_SIZE (CONFIG_EXAMPLE_BIT_SAMPLE * FFT_SAMPLE_SIZE)
 #define I2S_READ_LEN (FFT_SAMPLE_SIZE * sizeof(int32_t))
 #define I2S_CHUNK_SIZE 256
@@ -42,10 +43,6 @@ inline uint8_t getNextIndex(uint8_t i){
 
 void audio_input_task(void *pvParameters)
 {
-    esp_err_t err = esp_task_wdt_add(NULL); // NULL 表示当前任务
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to add task to WDT: %d", err);
-    }
     size_t bytes_read;
     const float scale = 1.0f / 8388608.0f;
     float avg_dc = 0.0;
@@ -128,7 +125,7 @@ esp_err_t init_microphone(void)
         "audio_viz",
         4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
         NULL,
-        configMAX_PRIORITIES - 2, // 较高优先级（避免音频卡顿）
+        PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
         NULL);
     return ESP_OK;
 }

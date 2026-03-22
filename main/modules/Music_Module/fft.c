@@ -10,7 +10,6 @@ audiois进行处理后，绘制图像，发送给面板驱动
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
-#include "driver/spi_master.h"
 #include "soc/gpio_struct.h"
 #include "driver/gpio.h"
 #include "driver/uart.h"

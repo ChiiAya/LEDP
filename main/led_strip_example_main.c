@@ -1,7 +1,7 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * LEDP
  *
- * SPDX-License-Identifier: Unlicense OR CC0-1.0
+ * By ChiiAya
  */
 #include "clock.h"
 #include <string.h>
@@ -10,42 +10,57 @@
 #include "esp_log.h"
 #include "driver/rmt_tx.h"
 #include "led_strip_encoder.h"
+#include "esp_timer.h"
 #include "modules/LEDPanel_Driver/driver.h"
 #include "driver.h"
 #include "modules/Music_Module/audio.h"
 #include "fft.h"
-#include "esp_freertos_hooks.h"
+#include "driver/gpio.h"
 #include "freertos/task.h"
+#include "menu.h"
+#include "nvs_flash.h"
 
-#define TASK_INDEX_IDLE_RUN 0  // 使用索引 0 表示 "IDLE 任务已运行"
 static const char *TAG = "MAIN";
+static int64_t last_debounce_time = 0; // 记录上次有效中断的时间
+const int64_t DEBOUNCE_DELAY_MS = 50;  // 消抖延迟 50ms 
+//一般来说，开机后应该进入时钟模式，通过旋钮或按键触发中断后再进入菜单
+//鉴于fft线程对主CPU的占用之大，理应给其一个空闲线程来喂狗（目前关闭了WatchDog）（前提是不会影响性能）
 
-TaskHandle_t mainTaskHandle = 0;
-DRAM_ATTR static uint8_t waiting_for_idle = 0;
-DRAM_ATTR uint8_t idle_task_was_run = 0;
-
-static bool idle_hook(void)
-{
-    idle_task_was_run = 1;
-    if (waiting_for_idle) {
-        waiting_for_idle = 0;  // we only want to notify once
-        xTaskNotifyIndexed(mainTaskHandle, TASK_INDEX_IDLE_RUN, 0, eNoAction);
-        return false;  // do not idle (i.e. do not wait for interrupt) as we want main task to run
+static void IRAM_ATTR HandleGPIOInterruption(void* arg) {
+    int64_t current_time = esp_timer_get_time() / 1000; // 获取当前时间
+    if (current_time - last_debounce_time < DEBOUNCE_DELAY_MS) {
+        return; 
     }
-    return true;  // allows idle task to idle (i.e. to wait for interrupt)
+    last_debounce_time = current_time;
+
+    BaseType_t xHigherPriTaskWoken = pdFALSE;
+    if (xSemaMenu != NULL) {
+        xSemaphoreGiveFromISR(xSemaMenu, &xHigherPriTaskWoken);
+    }
+    if (xHigherPriTaskWoken == pdTRUE) {
+        portYIELD_FROM_ISR();
+    }
+}
+
+void configure_gpio_interrupt() {
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << ConfigButton),  // 选择 GPIO 4
+        .mode = GPIO_MODE_INPUT,               // 输入模式
+        .intr_type = GPIO_INTR_NEGEDGE,        // 下降沿触发
+        .pull_up_en = GPIO_PULLUP_ENABLE,      // 启用上拉电阻（可选）
+    };
+    gpio_config(&io_conf);
 }
 
 void app_main(void)
 {
-    mainTaskHandle = xTaskGetCurrentTaskHandle();
-    esp_register_freertos_idle_hook_for_cpu(idle_hook, (UBaseType_t)xPortGetCoreID());
     ESP_LOGI(TAG, "MainFunction Booted");
 
     //driver init
     ESP_LOGI(TAG,"DriverInit");
     initRMT();//taskcreated
     clearPanel();
-// 测试全红
+    // 测试全红
     ESP_LOGI(TAG,"SelfTest");
     uint8_t test_frame[FRAME_SIZE];
     memset(test_frame, 0, FRAME_SIZE);
@@ -68,8 +83,21 @@ void app_main(void)
     submitLEDFrame(test_frame);
     vTaskDelay(pdMS_TO_TICKS(500));
     clearPanel();
+    
+    //以上是自检
+    //配置中断
+    configure_gpio_interrupt();
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(ConfigButton,HandleGPIOInterruption,(void *)ConfigButton);
+
+    //配网任务
+    nvs_flash_init();
+    initialise_wifi();
+    //create menu task
+    xTaskCreate(Menu_Task, "MenuTask", 4096, NULL, PRIORITY_MENU_TASK, NULL);
+    //create clock task
     clock_module_init();
-    //audio init
-    // initMusic();
-    // init_microphone();//taskcreated
+    //taskcreated
+    initMusic();
+    init_microphone();
 }
