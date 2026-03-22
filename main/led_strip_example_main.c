@@ -68,7 +68,8 @@ void app_main(void)
     submitLEDFrame(test_frame);
     vTaskDelay(pdMS_TO_TICKS(500));
     clearPanel();
+    clock_module_init();
     //audio init
-    initMusic();
-    init_microphone();//taskcreated
+    // initMusic();
+    // init_microphone();//taskcreated
 }
