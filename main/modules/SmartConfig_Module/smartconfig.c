@@ -21,6 +21,7 @@
 #include "esp_netif.h"
 #include "esp_smartconfig.h"
 #include "esp_mac.h"
+#include "smartconfig.h"
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t s_wifi_event_group;
@@ -128,8 +129,8 @@ static void smartconfig_example_task(void * parm)
     }
 }
 
-// void app_main(void)
-// {
-//     ESP_ERROR_CHECK( nvs_flash_init() );
-//     initialise_wifi();
-// }
+void wifi_autoconfigure(void)
+{
+    ESP_ERROR_CHECK( nvs_flash_init() );
+    initialise_wifi();
+}

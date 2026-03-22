@@ -1,1 +1,3 @@
-static void initialise_wifi(void);
+
+
+void wifi_autoconfigure(void);

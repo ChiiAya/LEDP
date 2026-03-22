@@ -19,6 +19,7 @@
 #include "freertos/task.h"
 #include "menu.h"
 #include "nvs_flash.h"
+#include "smartconfig.h"
 
 static const char *TAG = "MAIN";
 static int64_t last_debounce_time = 0; // 记录上次有效中断的时间
@@ -91,8 +92,7 @@ void app_main(void)
     gpio_isr_handler_add(ConfigButton,HandleGPIOInterruption,(void *)ConfigButton);
 
     //配网任务
-    nvs_flash_init();
-    initialise_wifi();
+    wifi_autoconfigure();
     //create menu task
     xTaskCreate(Menu_Task, "MenuTask", 4096, NULL, PRIORITY_MENU_TASK, NULL);
     //create clock task
