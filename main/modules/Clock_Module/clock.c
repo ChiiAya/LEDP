@@ -4,7 +4,7 @@
 #include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "sntp.c"
 // 【关键】引入你项目实际的 LED 驱动头文件
 #include "driver.h"
 
@@ -14,7 +14,7 @@ static const char *CLOCK_TAG = "CLOCK";
 // ==========================================
 // 配置：时钟显示颜色
 // ==========================================
-#define CLOCK_COLOR_R    255 // 红色
+#define CLOCK_COLOR_R    30 // 红色
 #define CLOCK_COLOR_G    0   // 绿色
 #define CLOCK_COLOR_B    0   // 蓝色
 
@@ -95,14 +95,7 @@ static void draw_colon(int x_offset)
 // ==========================================
 static void clock_task(void *arg)
 {
-    // 初始化系统时间为 00:00:00
-    struct timeval tv_init = {.tv_sec = 0, .tv_usec = 0};
-    settimeofday(&tv_init, NULL);
-
-    // 设置中国标准时区 (CST-8)
-    setenv("TZ", "CST-8", 1);
-    tzset();
-
+    
     char strftime_buf[64] = {0};
     time_t now;
     struct tm timeinfo = {0};
@@ -151,11 +144,13 @@ static void clock_task(void *arg)
     }
 }
 
+
 // ==========================================
 // 时钟初始化接口（保持不变，不影响其他代码）
 // ==========================================
 void clock_module_init(void)
 {
+    init_sntp();
     // 调大栈到 8192，确保 LED 渲染有足够栈空间
     xTaskCreatePinnedToCore(
         clock_task,

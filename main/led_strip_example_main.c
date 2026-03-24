@@ -53,6 +53,17 @@ void configure_gpio_interrupt() {
     gpio_config(&io_conf);
 }
 
+esp_err_t startFFTtask(){
+    xTaskCreate(
+        audio_input_task,
+        "audio_viz",
+        4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
+        NULL,
+        PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
+        NULL);
+        return ESP_OK;
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "MainFunction Booted");
@@ -97,7 +108,8 @@ void app_main(void)
     xTaskCreate(Menu_Task, "MenuTask", 4096, NULL, PRIORITY_MENU_TASK, NULL);
     //create clock task
     clock_module_init();
-    //taskcreated
+    //FFT_task
     initMusic();
     init_microphone();
+    //startFFTtask();
 }
