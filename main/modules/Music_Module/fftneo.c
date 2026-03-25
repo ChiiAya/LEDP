@@ -171,6 +171,7 @@
          s_pixel_frame[i] = (uint8_t)s_pixel_frame_f[i]; 
      } 
 
+<<<<<<< HEAD
      // 提交
      int64_t now_time = esp_timer_get_time(); 
      if (now_time - last_frame_time >= MIN_INTERVAL_US) { 
@@ -189,3 +190,171 @@
      } 
      esp_task_wdt_reset(); 
  }
+=======
+static float temp = 0.0;
+static uint8_t s_pixel_frame[FRAME_SIZE] = {0.0};
+static float s_pixel_frame_f[FRAME_SIZE] = {0.0};
+static uint16_t fft_index[LEDPanel_Width+1] = {0,1, 2, 3, 4, 6, 7, 9, 10, 13, 
+    16, 19, 24, 29, 35, 43, 53, 64, 78, 96, 116, 142, 173,
+     211, 257, 313, 381, 465, 566, 690, 840, 980,1023};
+static uint8_t ColumnHeight[LEDPanel_Width] = {0,0,0,0,0,0,0,0};
+static float Pre_avr_db = 0.0;
+
+//static uint8_t JumpingBlock[LEDPanel_Width];
+
+void initMusic(){
+    memset(s_pixel_frame,0,FRAME_SIZE);
+
+    // Generate hann window
+    dsps_wind_hann_f32(wind, N);
+    esp_err_t ret;
+    ESP_LOGI(TAG, "Start FFT.");
+    ret = dsps_fft2r_init_fc32(NULL, CONFIG_DSP_MAX_FFT_SIZE);
+    ESP_LOGI(TAG, "N_SAMPLES = %d", N_SAMPLES);
+    ESP_LOGI(TAG, "N = %d", N);
+    ESP_LOGI(TAG, "CONFIG_DSP_MAX_FFT_SIZE = %d", CONFIG_DSP_MAX_FFT_SIZE); 
+    if (ret  != ESP_OK) {
+        ESP_LOGE(TAG, "Not possible to initialize FFT. Error = %i", ret);
+        return;
+    }
+
+}
+
+const uint8_t* getMusicPointer(){
+    return s_pixel_frame;
+}
+
+void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
+{
+    if (!audiosource) {
+        ESP_LOGE(TAG, "audiosource is NULL!");
+        return;
+    }
+    // 检查对齐
+    if (((uint32_t)audiosource & 0xF) != 0) {
+        ESP_LOGE(TAG, "audiosource not 16-byte aligned: %p", audiosource);
+        return;
+    }
+
+    for (int i = 0 ; i < N ; i++) {
+        y_cf[i * 2 + 0] = audiosource[i] * wind[i];
+        y_cf[i * 2 + 1] = 0;
+    }
+    // FFT
+    //unsigned int start_b = dsp_get_cpu_cycle_count();
+    dsps_fft2r_fc32(y_cf, N);
+    //unsigned int end_b = dsp_get_cpu_cycle_count();
+    // Bit reverse
+    dsps_bit_rev_fc32(y_cf, N);
+    //unsigned int end_b_bitr = dsp_get_cpu_cycle_count();
+
+    esp_task_wdt_reset();
+
+    for (int i = 0 ; i < N / 2 ; i++) {
+        sum_y[i] = 10 * log10f((y_cf[i * 2 + 0] * y_cf[i * 2 + 0] + y_cf[i * 2 + 1] * y_cf[i * 2 + 1]) / N);
+    }
+    //unsigned int end_b_2db = dsp_get_cpu_cycle_count();
+    // //噪音门
+    // for(int i = 0;i < N/2;i++){
+    //     sum_y[i] = sum_y[i] < MINDB ? MINDB : sum_y[i];
+    //     sum_y[i] = sum_y[i] > MAXDB ? MAXDB : sum_y[i];
+    // }
+
+    //动态增益
+    //  计算平均功率
+    float db_avr = 0.0;
+    for(int i = 0;i < N/2;i++){
+        db_avr += sum_y[i];
+    }
+    db_avr /= N/2;
+    Pre_avr_db = ADC_factor * db_avr + (1 - ADC_factor) * Pre_avr_db;
+    //动态调整噪音门
+    float min_db = MINDB;
+    float max_db = Pre_avr_db + 20.0f;
+
+    //防止大突变
+    if(max_db > MAXDB_MAX) max_db = MAXDB_MAX;
+    if(max_db < MAXDB_MIN) max_db = MAXDB_MIN;
+
+    //归一化
+    for(int i = 0;i < N/2;i++){
+        float clamped_db = fmaxf(sum_y[i], min_db);
+        clamped_db = fminf(clamped_db, max_db);
+        sum_y[i] = (clamped_db - min_db) / (max_db - min_db);
+    }
+
+    //决定高度
+    for(int i = 0;i < LEDPanel_Width - 1;i++){
+        temp = 0.0;
+        for(int j = fft_index[i];j < fft_index[i+1];j++){
+            temp += sum_y[j];
+        }
+        temp = temp/(fft_index[i+1]-fft_index[i]);
+        if(temp < 0.125){
+            ColumnHeight[i] = 0;
+        }else if(temp < 0.25){ ColumnHeight[i] = 1;}
+        else if(temp < 0.375){ ColumnHeight[i] = 2;}
+        else if(temp < 0.5  ){ ColumnHeight[i] = 3;}
+        else if(temp < 0.625){ ColumnHeight[i] = 4;}
+        else if(temp < 0.75 ){ ColumnHeight[i] = 5;}
+        else if(temp < 0.875){ ColumnHeight[i] = 6;}
+        else{ ColumnHeight[i] = 7;}
+    }
+
+    //在上一帧的基础上衰减
+    for(int i = 0;i < LEDPanel_Width*LEDPanel_Height*3;i++){
+        s_pixel_frame_f[i] *= decay_factor;
+    }
+    esp_task_wdt_reset();
+    //绘制
+    for(int i = 0;i < LEDPanel_Width;i++){
+        uint32_t hue = i * (300 / (LEDPanel_Width - 1)); // 左(低频)=0°(红), 右(高频)=300°(紫)
+        uint32_t value = 20;//20 + (uint32_t)(80.0f * fminf(fmaxf(sum_y[i], 0.0f), 1.0f));
+        uint32_t saturation = 100;
+        uint32_t r, g, b;
+        float scale = 64.0f / 255.0f;
+        led_strip_hsv2rgb(hue, saturation, value, &r, &g, &b);
+
+        for(int j = 0;j<LEDPanel_Height;j++){
+            if(ColumnHeight[i] >= j){
+                s_pixel_frame_f[(i+j*LEDPanel_Width)*3    ] = r * scale; //R,G,B
+                s_pixel_frame_f[(i+j*LEDPanel_Width)*3 + 1] = g * scale;
+                s_pixel_frame_f[(i+j*LEDPanel_Width)*3 + 2] = b * scale;
+            }
+        }
+    }
+    //unsigned int end_b_paint = dsp_get_cpu_cycle_count();
+    //转为uint8
+    for(int i = 0;i < LEDPanel_Width*LEDPanel_Height*3;i++){
+        s_pixel_frame[i] = s_pixel_frame_f[i];
+    }
+    //提交至队列
+    int64_t now_time = esp_timer_get_time();
+    int64_t ttime = last_frame_time;
+    if (now_time - last_frame_time >= MIN_INTERVAL_US) {
+        submitLEDFrame(s_pixel_frame);
+        last_frame_time = now_time;
+    }
+    
+    /*
+    ================================
+    Performance Analysis
+    ================================
+    */
+    // === 帧率统计 ===
+    if (last_frame_time != 0) {
+        int64_t delta_us = now_time - ttime;
+        float instant_fps = 1000000.0f / delta_us; // 转为 FPS
+
+        // 指数平滑平均 FPS（避免抖动）
+        avg_fps = 0.9f * avg_fps + 0.1f * instant_fps;
+
+        // 每 30 帧打印一次（避免日志刷屏）
+        if (++frame_count >= 120) {
+            ESP_LOGI(TAG, "Avg FPS: %.1f", avg_fps);
+            frame_count = 0;
+        }
+    }
+    esp_task_wdt_reset();
+}
+>>>>>>> 1f3a732c6220bf48770ab9274748804fc214fdde
