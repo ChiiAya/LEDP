@@ -1,6 +1,5 @@
 /*
  * LEDP
- *
  * By ChiiAya
  */
 #include "clock.h"
@@ -23,7 +22,7 @@
 
 static const char *TAG = "MAIN";
 static int64_t last_debounce_time = 0; // 记录上次有效中断的时间
-const int64_t DEBOUNCE_DELAY_MS = 50;  // 消抖延迟 50ms 
+const int64_t DEBOUNCE_DELAY_MS = 500;  // 消抖延迟 500ms 
 //一般来说，开机后应该进入时钟模式，通过旋钮或按键触发中断后再进入菜单
 //鉴于fft线程对主CPU的占用之大，理应给其一个空闲线程来喂狗（目前关闭了WatchDog）（前提是不会影响性能）
 
@@ -51,6 +50,17 @@ void configure_gpio_interrupt() {
         .pull_up_en = GPIO_PULLUP_ENABLE,      // 启用上拉电阻（可选）
     };
     gpio_config(&io_conf);
+}
+
+esp_err_t startFFTtask(){
+    xTaskCreate(
+        audio_input_task,
+        "audio_viz",
+        4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
+        NULL,
+        PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
+        NULL);
+        return ESP_OK;
 }
 
 void app_main(void)
@@ -97,7 +107,8 @@ void app_main(void)
     xTaskCreate(Menu_Task, "MenuTask", 4096, NULL, PRIORITY_MENU_TASK, NULL);
     //create clock task
     clock_module_init();
-    //taskcreated
+    //FFT_task
     initMusic();
     init_microphone();
+    //startFFTtask();
 }

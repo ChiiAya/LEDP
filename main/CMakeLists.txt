@@ -4,6 +4,7 @@ SRCS
     "modules/LEDPanel_Driver/led_strip_encoder.c" 
     "modules/LEDPanel_Driver/driver.c"
     "modules/Clock_Module/clock.c"
+    "modules/Clock_Module/sntp.c"
     "modules/Music_Module/fft.c"
     "modules/Music_Module/audio.c"
     "modules/Menu_Module/menu.c"
