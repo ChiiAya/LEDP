@@ -109,6 +109,8 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
     dsps_bit_rev_fc32(y_cf, N);
     //unsigned int end_b_bitr = dsp_get_cpu_cycle_count();
 
+    esp_task_wdt_reset();
+
     for (int i = 0 ; i < N / 2 ; i++) {
         sum_y[i] = 10 * log10f((y_cf[i * 2 + 0] * y_cf[i * 2 + 0] + y_cf[i * 2 + 1] * y_cf[i * 2 + 1]) / N);
     }
@@ -164,7 +166,7 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
     for(int i = 0;i < LEDPanel_Width*LEDPanel_Height*3;i++){
         s_pixel_frame_f[i] *= decay_factor;
     }
-
+    esp_task_wdt_reset();
     //绘制
     for(int i = 0;i < LEDPanel_Width;i++){
         uint32_t hue = i * (300 / (LEDPanel_Width - 1)); // 左(低频)=0°(红), 右(高频)=300°(紫)

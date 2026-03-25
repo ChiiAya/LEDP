@@ -109,8 +109,8 @@ static void clock_task(void *arg)
         localtime_r(&now, &timeinfo);
 
         // 2. 串口打印时间
-        strftime(strftime_buf, sizeof(strftime_buf), "%H:%M:%S", &timeinfo);
-        ESP_LOGI(CLOCK_TAG, "系统时间: %s", strftime_buf);
+        //strftime(strftime_buf, sizeof(strftime_buf), "%H:%M:%S", &timeinfo);
+        //ESP_LOGI(CLOCK_TAG, "系统时间: %s", strftime_buf);
 
         // ==========================================
         // 3. 【核心新增】渲染时间到 LED 面板

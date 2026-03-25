@@ -1,6 +1,5 @@
 /*
  * LEDP
- *
  * By ChiiAya
  */
 #include "clock.h"
@@ -23,7 +22,7 @@
 
 static const char *TAG = "MAIN";
 static int64_t last_debounce_time = 0; // 记录上次有效中断的时间
-const int64_t DEBOUNCE_DELAY_MS = 50;  // 消抖延迟 50ms 
+const int64_t DEBOUNCE_DELAY_MS = 500;  // 消抖延迟 500ms 
 //一般来说，开机后应该进入时钟模式，通过旋钮或按键触发中断后再进入菜单
 //鉴于fft线程对主CPU的占用之大，理应给其一个空闲线程来喂狗（目前关闭了WatchDog）（前提是不会影响性能）
 

@@ -12,12 +12,16 @@
 #include <AnimationSet.h>
 #include <semaphore.h>
 #include <driver.h>
+#include "esp_task_wdt.h"
+#include "clock.h"
+#include "led_strip_example_main.h"
 
 static const char *TAG = "[Menu]";
 static uint8_t current_task = 0;
 SemaphoreHandle_t xSemaMenu = NULL;
 SemaphoreHandle_t xSemaAnimationOver = NULL;
 static uint8_t framebuffer[FRAME_SIZE] = {0};
+
 void Menu_Task(void *pvParameters){
     ESP_LOGI(TAG,"MenuConfigure");
     xSemaMenu = xSemaphoreCreateBinary();
@@ -27,15 +31,17 @@ void Menu_Task(void *pvParameters){
         ESP_LOGI(TAG,"EnterMenuConfigure");
         ESP_LOGI(TAG,"Fading Current Screen");
         get_latest_frame(framebuffer);
-        fade(framebuffer,0,0,1,1);
+        //fade(framebuffer,0,0,1,1);
 
         // 获取音频任务句柄
         TaskHandle_t hAudio = xTaskGetHandle("audio_viz");
         // 获取时钟任务句柄
-        TaskHandle_t hClock = xTaskGetHandle("clock");
+        TaskHandle_t hClock = xTaskGetHandle("clock_task");
         
+        ESP_LOGI(TAG,"==============CurrentTask == %d================",current_task);
         // 挂起音频任务 (如果存在)
         if (hAudio != NULL) {
+            esp_task_wdt_delete(hAudio);
             vTaskSuspend(hAudio);
             ESP_LOGI(TAG, "Suspended audio_viz");
         } else {
@@ -47,16 +53,22 @@ void Menu_Task(void *pvParameters){
             vTaskSuspend(hClock);
             ESP_LOGI(TAG, "Suspended clock");
         } else {
-            ESP_LOGW(TAG, "Task 'clock' not found");
+            ESP_LOGW(TAG, "Task 'clock_task' not found");
         }
 
-        xSemaphoreTake(xSemaAnimationOver,pdMS_TO_TICKS(2000));
+        //xSemaphoreTake(xSemaAnimationOver,pdMS_TO_TICKS(2000));
+        //xSemaphoreTake(xSemaAnimationOver,portMAX_DELAY);
         if (current_task == 0) {
             // 切换到状态 1: 恢复音频
             if (hAudio != NULL) {
-                vTaskResume(hAudio);
                 ESP_LOGI(TAG, "Resumed audio_viz");
+                vTaskResume(hAudio);
+            }else{
+                ESP_LOGI(TAG, "Start audio_viz");
+                ESP_ERROR_CHECK(startFFTtask());
             }
+            hAudio = xTaskGetHandle("audio_viz");
+            esp_task_wdt_add(hAudio);
             current_task = 1;
         } else {
             // 切换到状态 0: 恢复时钟
