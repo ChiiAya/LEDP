@@ -5,6 +5,7 @@
 
 typedef struct {
     uint8_t *framebuffer;
+    uint8_t *anim_buffer;
     uint8_t x_startpoint;
     uint8_t y_startpoint;
     uint8_t direction;
@@ -21,6 +22,7 @@ static void fade_timer_callback(void *arg) {
         // 动画完成，停止定时器并释放资源
         esp_timer_stop(state->timer_handle);
         esp_timer_delete(state->timer_handle);
+        free(state->anim_buffer);
         free(state);
         //通知给menu 
         if(xSemaAnimationOver != NULL){
@@ -45,9 +47,9 @@ static void fade_timer_callback(void *arg) {
                     if (dst_i >= 0) {
                         // 在边界内：移动并淡化
                         int dst_idx = (dst_i * LEDPanel_Height + j) * 3;
-                        state->framebuffer[dst_idx + 0] = (uint8_t)(state->framebuffer[src_idx + 0] * alpha / 255);
-                        state->framebuffer[dst_idx + 1] = (uint8_t)(state->framebuffer[src_idx + 1] * alpha / 255);
-                        state->framebuffer[dst_idx + 2] = (uint8_t)(state->framebuffer[src_idx + 2] * alpha / 255);
+                        state->anim_buffer[dst_idx + 0] = (uint8_t)(state->framebuffer[src_idx + 0] * alpha / 255);
+                        state->anim_buffer[dst_idx + 1] = (uint8_t)(state->framebuffer[src_idx + 1] * alpha / 255);
+                        state->anim_buffer[dst_idx + 2] = (uint8_t)(state->framebuffer[src_idx + 2] * alpha / 255);
                     }
                     // dst_i < 0 的部分自然丢弃（滑出边界）
                 }
@@ -56,9 +58,9 @@ static void fade_timer_callback(void *arg) {
             for (int i = LEDPanel_Width - offset; i < LEDPanel_Width; i++) {
                 for (int j = 0; j < LEDPanel_Height; j++) {
                     int idx = (i * LEDPanel_Height + j) * 3;
-                    state->framebuffer[idx + 0] = 0;
-                    state->framebuffer[idx + 1] = 0;
-                    state->framebuffer[idx + 2] = 0;
+                    state->anim_buffer[idx + 0] = 0;
+                    state->anim_buffer[idx + 1] = 0;
+                    state->anim_buffer[idx + 2] = 0;
                 }
             }
             break;
@@ -73,9 +75,9 @@ static void fade_timer_callback(void *arg) {
                     if (dst_i < LEDPanel_Width && dst_i >= 0) {
                         // 在边界内：移动并淡化
                         int dst_idx = (dst_i * LEDPanel_Height + j) * 3;
-                        state->framebuffer[dst_idx + 0] = (uint8_t)(state->framebuffer[src_idx + 0] * alpha / 255);
-                        state->framebuffer[dst_idx + 1] = (uint8_t)(state->framebuffer[src_idx + 1] * alpha / 255);
-                        state->framebuffer[dst_idx + 2] = (uint8_t)(state->framebuffer[src_idx + 2] * alpha / 255);
+                        state->anim_buffer[dst_idx + 0] = (uint8_t)(state->framebuffer[src_idx + 0] * alpha / 255);
+                        state->anim_buffer[dst_idx + 1] = (uint8_t)(state->framebuffer[src_idx + 1] * alpha / 255);
+                        state->anim_buffer[dst_idx + 2] = (uint8_t)(state->framebuffer[src_idx + 2] * alpha / 255);
                     }
                     // dst_i < 0 的部分自然丢弃（滑出边界）
                 }
@@ -84,9 +86,9 @@ static void fade_timer_callback(void *arg) {
             for (int i = 0; i < offsetR; i++) {
                 for (int j = 0; j < LEDPanel_Height; j++) {
                     int idx = (i * LEDPanel_Height + j) * 3;
-                    state->framebuffer[idx + 0] = 0;
-                    state->framebuffer[idx + 1] = 0;
-                    state->framebuffer[idx + 2] = 0;
+                    state->anim_buffer[idx + 0] = 0;
+                    state->anim_buffer[idx + 1] = 0;
+                    state->anim_buffer[idx + 2] = 0;
                 }
             }
             break;
@@ -99,7 +101,7 @@ static void fade_timer_callback(void *arg) {
             ESP_LOGW("AnimationSet","This animation is not implemented");
             break;
     }
-    submitLEDFrame(state->framebuffer);
+    submitLEDFrame(state->anim_buffer);
     state->current_step++;
 }
 
@@ -111,11 +113,22 @@ void fade(uint8_t *framebuffer,
           uint8_t duration  // 单位：秒
 ) {
     
+    
+    // 创建独立的动画缓冲区
+    uint8_t *anim_buffer = (uint8_t *)malloc(FRAME_SIZE);
+    if (!anim_buffer) return;
+    // 复制原始帧到动画缓冲区
+    memcpy(anim_buffer, framebuffer, FRAME_SIZE);
     // 创建动画状态
     FadeAnimationState_t *state = (FadeAnimationState_t *)malloc(sizeof(FadeAnimationState_t));
-    if (state == NULL) return;
+    if (state == NULL){
+        free(anim_buffer);
+        free(state);
+        return;
+    };
     
     state->framebuffer = framebuffer;
+    state->anim_buffer = anim_buffer;
     state->x_startpoint = x_startpoint;
     state->y_startpoint = y_startpoint;
     state->direction = direction;

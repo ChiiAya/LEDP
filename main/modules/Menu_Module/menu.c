@@ -31,7 +31,7 @@ void Menu_Task(void *pvParameters){
         ESP_LOGI(TAG,"EnterMenuConfigure");
         ESP_LOGI(TAG,"Fading Current Screen");
         get_latest_frame(framebuffer);
-        //fade(framebuffer,0,0,1,1);
+        fade(framebuffer,0,0,1,1);
 
         // 获取音频任务句柄
         TaskHandle_t hAudio = xTaskGetHandle("audio_viz");
@@ -56,7 +56,7 @@ void Menu_Task(void *pvParameters){
             ESP_LOGW(TAG, "Task 'clock_task' not found");
         }
 
-        //xSemaphoreTake(xSemaAnimationOver,pdMS_TO_TICKS(2000));
+        xSemaphoreTake(xSemaAnimationOver,pdMS_TO_TICKS(2000));
         //xSemaphoreTake(xSemaAnimationOver,portMAX_DELAY);
         if (current_task == 0) {
             // 切换到状态 1: 恢复音频
