@@ -120,12 +120,12 @@ esp_err_t init_microphone(void)
     i2s_channel_init_std_mode(rx_handle, &std_cfg);
     i2s_channel_enable(rx_handle);
 
-    // xTaskCreate(
-    //     audio_input_task,
-    //     "audio_viz",
-    //     4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
-    //     NULL,
-    //     PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
-    //     NULL);
+    xTaskCreate(
+        audio_input_task,
+        "audio_viz",
+        4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
+        NULL,
+        PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
+        NULL);
     return ESP_OK;
 }
