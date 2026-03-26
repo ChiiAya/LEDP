@@ -211,3 +211,42 @@ esp_err_t clearPanel()//简单的清屏
     submitLEDFrame(led_strip_pixels);
     return ESP_OK;
 }
+
+static inline uint8_t alpha_blend(uint8_t a, uint8_t b, uint8_t alpha)
+{
+    return (a * alpha + b * (255 - alpha)) / 255;
+}
+
+// Alpha 混合处理函数
+static void blend_frames_alpha(uint8_t *output,
+                                const uint8_t *frame_a,
+                                const uint8_t *frame_b,
+                                uint8_t alpha,
+                                size_t pixel_count)
+{
+    size_t total_bytes = pixel_count * 3;
+    for (size_t i = 0; i < total_bytes; i++) {
+        output[i] = alpha_blend(frame_a[i], frame_b[i], alpha);
+    }
+}
+
+esp_err_t submitBlendedFrame(const uint8_t *frame_a,
+                              const uint8_t *frame_b,
+                              uint8_t alpha)//b 是基底帧 a 是叠加帧
+{
+    if (!frame_queue) return ESP_ERR_INVALID_STATE;
+    if (!frame_a || !frame_b) return ESP_ERR_INVALID_ARG;
+
+    // 分配混合缓冲区
+    static uint8_t blended_buffer[LEDPanel_Height * LEDPanel_Width * 3];
+    
+    // 执行 Alpha 混合
+    blend_frames_alpha(blended_buffer,
+                       frame_a, 
+                       frame_b, 
+                       alpha,
+                       LEDPanel_Height * LEDPanel_Width);
+
+    // 提交混合后的帧
+    return submitLEDFrame(blended_buffer);
+}

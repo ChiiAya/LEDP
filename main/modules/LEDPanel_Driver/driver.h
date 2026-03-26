@@ -59,4 +59,8 @@ esp_err_t submitLEDFrame(const uint8_t *pixels);
 esp_err_t clearPanel(void);
 void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t *g, uint32_t *b);
 esp_err_t get_latest_frame(uint8_t *TargetFrame);
+
+esp_err_t submitBlendedFrame(const uint8_t *frame_a,
+                              const uint8_t *frame_b,
+                              uint8_t alpha);//b 是基底帧 a 是叠加帧
 #endif // DRIVER_H_

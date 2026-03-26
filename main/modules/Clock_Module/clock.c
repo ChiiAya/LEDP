@@ -14,9 +14,9 @@ static const char *CLOCK_TAG = "CLOCK";
 // ==========================================
 // 配置：时钟显示颜色
 // ==========================================
-#define CLOCK_COLOR_R    30 // 红色
-#define CLOCK_COLOR_G    0   // 绿色
-#define CLOCK_COLOR_B    0   // 蓝色
+#define CLOCK_COLOR_R    10 // 红色
+#define CLOCK_COLOR_G    10   // 绿色
+#define CLOCK_COLOR_B    10   // 蓝色
 
 // ==========================================
 // 字模：5x7 点阵数字 0-9（用于显示时间）

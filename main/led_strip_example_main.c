@@ -20,6 +20,13 @@
 #include "nvs_flash.h"
 #include "smartconfig.h"
 
+uint8_t StartScreen[32] = {
+    0x00, 0x00, 0x00, 0x00, 0x7E, 0x02, 0x02, 0x02, 
+    0x02, 0x00, 0x3C, 0x4A, 0x4A, 0x4A, 0x32, 0x00, 
+    0x00, 0x7E, 0x42, 0x42, 0x42, 0x3C, 0x00, 0x7E, 
+    0x48, 0x48, 0x48, 0x30, 0x00, 0x00, 0x00, 0x00
+};
+
 static const char *TAG = "MAIN";
 static int64_t last_debounce_time = 0; // 记录上次有效中断的时间
 const int64_t DEBOUNCE_DELAY_MS = 500;  // 消抖延迟 500ms 
@@ -63,6 +70,38 @@ esp_err_t startFFTtask(){
         return ESP_OK;
 }
 
+esp_err_t startAudioInputTask(){
+    xTaskCreate(
+        audio_input_task,
+        "audio_viz",
+        4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
+        NULL,
+        PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
+        NULL);
+        return ESP_OK;
+}
+
+esp_err_t drawStartingScreen(uint8_t *framebuffer){
+    uint8_t black_frame[FRAME_SIZE];
+    memset(framebuffer, 0, FRAME_SIZE);
+    memset(black_frame, 0, FRAME_SIZE);
+    for(int i = 0; i < LEDPanel_Width; i++){
+        for(int j = 0; j < LEDPanel_Height; j++){
+            uint8_t pixel_index = (i * LEDPanel_Height + j) * 3;
+            if((StartScreen[i] & (1 << j)) != 0){
+                framebuffer[pixel_index] = 20;
+                framebuffer[pixel_index+1] = 20;
+                framebuffer[pixel_index+2] = 20;
+            }
+        }
+    };
+    for(uint8_t alpha = 0; alpha < 255; alpha+=5){
+        submitBlendedFrame(framebuffer, black_frame, alpha);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    };
+    return ESP_OK;
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "MainFunction Booted");
@@ -75,27 +114,29 @@ void app_main(void)
     ESP_LOGI(TAG,"SelfTest");
     uint8_t test_frame[FRAME_SIZE];
     memset(test_frame, 0, FRAME_SIZE);
-    for (int j = 0; j < 32; j++) {
-        int idx = (j) * 3;//y * Width + x
-        test_frame[idx + 0] = 10; // R
-        test_frame[idx + 1] = 0;   // G
-        test_frame[idx + 2] = 0;   // B
-    }
-    submitLEDFrame(test_frame);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    clearPanel();
+    // for (int j = 0; j < 32; j++) {
+    //     int idx = (j) * 3;//y * Width + x
+    //     test_frame[idx + 0] = 10; // R
+    //     test_frame[idx + 1] = 0;   // G
+    //     test_frame[idx + 2] = 0;   // B
+    // }
+    // submitLEDFrame(test_frame);
+    // vTaskDelay(pdMS_TO_TICKS(500));
+    // clearPanel();
 
-    for (int i = 0; i < 8; i++) {
-        int idx = (i * 32 + 0) * 3;
-        test_frame[idx + 0] = 0;   // R
-        test_frame[idx + 1] = 10; // G
-        test_frame[idx + 2] = 0;   // B → 显示绿色，便于区分
-    }
-    submitLEDFrame(test_frame);
-    vTaskDelay(pdMS_TO_TICKS(500));
-    clearPanel();
+    // for (int i = 0; i < 8; i++) {
+    //     int idx = (i * 32 + 0) * 3;
+    //     test_frame[idx + 0] = 0;   // R
+    //     test_frame[idx + 1] = 10; // G
+    //     test_frame[idx + 2] = 0;   // B → 显示绿色，便于区分
+    // }
+    // submitLEDFrame(test_frame);
+    // vTaskDelay(pdMS_TO_TICKS(500));
+    // clearPanel();
     
     //以上是自检
+
+    drawStartingScreen(test_frame);
     //配置中断
     configure_gpio_interrupt();
     gpio_install_isr_service(0);
