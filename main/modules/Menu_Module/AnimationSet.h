@@ -39,7 +39,7 @@ static void fade_timer_callback(void *arg) {
         case 0:
             // LEFT
             uint8_t offset = state->current_step * LEDPanel_Width/ state->total_steps;
-            for (int i = 0; i < LEDPanel_Width; i++) {
+            for (int i = LEDPanel_Width - 1; i >=0 ; i--) {
                 for (int j = 0; j < LEDPanel_Height; j++) {
                     int src_idx = (i * LEDPanel_Height + j) * 3;
                     int dst_i = i - offset;  // 目标列 = 源列 - 偏移量
@@ -57,35 +57,33 @@ static void fade_timer_callback(void *arg) {
             // 清空右侧空白区域（被滑出的部分）
             for (int i = LEDPanel_Width - offset; i < LEDPanel_Width; i++) {
                 for (int j = 0; j < LEDPanel_Height; j++) {
-                    int idx = (i * LEDPanel_Height + j) * 3;
+                    int idx = (j * LEDPanel_Width + i) * 3;
                     state->anim_buffer[idx + 0] = 0;
                     state->anim_buffer[idx + 1] = 0;
                     state->anim_buffer[idx + 2] = 0;
                 }
             }
             break;
-        case 1:
+        case 1: 
             // RIGHT
-            uint8_t offsetR = state->current_step * LEDPanel_Width/ state->total_steps;
-            for (int i = LEDPanel_Width - 1; i >= 0; i--) {
+            uint8_t offsetR = state->current_step * LEDPanel_Width / state->total_steps;
+            // 修复：从左到右遍历列，避免覆盖
+            for (int i = 0; i < LEDPanel_Width; i++) {
                 for (int j = 0; j < LEDPanel_Height; j++) {
-                    int src_idx = (i * LEDPanel_Height + j) * 3;
-                    int dst_i = (i + offsetR);  // 目标列 = 源列 - 偏移量
-                    
-                    if (dst_i < LEDPanel_Width && dst_i >= 0) {
-                        // 在边界内：移动并淡化
-                        int dst_idx = (dst_i * LEDPanel_Height + j) * 3;
+                    int src_idx = (j * LEDPanel_Width + i) * 3;
+                    int dst_i = i + offsetR;  // 目标列
+                    if (dst_i < LEDPanel_Width) {
+                        int dst_idx = (j * LEDPanel_Width + dst_i) * 3;
                         state->anim_buffer[dst_idx + 0] = (uint8_t)(state->framebuffer[src_idx + 0] * alpha / 255);
                         state->anim_buffer[dst_idx + 1] = (uint8_t)(state->framebuffer[src_idx + 1] * alpha / 255);
                         state->anim_buffer[dst_idx + 2] = (uint8_t)(state->framebuffer[src_idx + 2] * alpha / 255);
                     }
-                    // dst_i < 0 的部分自然丢弃（滑出边界）
                 }
             }
-            // 清空左侧空白区域（被滑出的部分）
+            // 清空左侧空白区域
             for (int i = 0; i < offsetR; i++) {
                 for (int j = 0; j < LEDPanel_Height; j++) {
-                    int idx = (i * LEDPanel_Height + j) * 3;
+                    int idx = (j * LEDPanel_Width + i) * 3;
                     state->anim_buffer[idx + 0] = 0;
                     state->anim_buffer[idx + 1] = 0;
                     state->anim_buffer[idx + 2] = 0;
@@ -110,7 +108,7 @@ void fade(uint8_t *framebuffer,
           uint8_t x_startpoint, 
           uint8_t y_startpoint,
           uint8_t direction,//0 -> LEFT | 1 -> RIGHT | 2 -> UP | 3 -> DOWN
-          uint8_t duration  // 单位：秒
+          float duration  // 单位：秒
 ) {
     
     

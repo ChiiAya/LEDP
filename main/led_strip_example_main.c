@@ -21,10 +21,10 @@
 #include "smartconfig.h"
 
 uint8_t StartScreen[32] = {
-    0x00, 0x00, 0x00, 0x00, 0x7E, 0x02, 0x02, 0x02, 
-    0x02, 0x00, 0x3C, 0x4A, 0x4A, 0x4A, 0x32, 0x00, 
-    0x00, 0x7E, 0x42, 0x42, 0x42, 0x3C, 0x00, 0x7E, 
-    0x48, 0x48, 0x48, 0x30, 0x00, 0x00, 0x00, 0x00
+    0x00, 0x00, 0x00, 0x00, 0x7E, 0x40, 0x40, 0x40,
+    0x40, 0x00, 0x3C, 0x52, 0x52, 0x52, 0x4C, 0x00,
+    0x00, 0x7E, 0x42, 0x42, 0x42, 0x3C, 0x00, 0x7E,
+    0x12, 0x12, 0x12, 0x0C, 0x00, 0x00, 0x00, 0x00,
 };
 
 static const char *TAG = "MAIN";
@@ -70,24 +70,17 @@ esp_err_t startFFTtask(){
         return ESP_OK;
 }
 
-esp_err_t startAudioInputTask(){
-    xTaskCreate(
-        audio_input_task,
-        "audio_viz",
-        4096 * 2, // 堆栈大小（FFT + 日志可能需要较大）
-        NULL,
-        PRIORITY_DRAWING_TASK, // 较高优先级（避免音频卡顿）
-        NULL);
-        return ESP_OK;
-}
 
 esp_err_t drawStartingScreen(uint8_t *framebuffer){
     uint8_t black_frame[FRAME_SIZE];
     memset(framebuffer, 0, FRAME_SIZE);
     memset(black_frame, 0, FRAME_SIZE);
-    for(int i = 0; i < LEDPanel_Width; i++){
-        for(int j = 0; j < LEDPanel_Height; j++){
-            uint8_t pixel_index = (i * LEDPanel_Height + j) * 3;
+
+    for(int i = 0; i < LEDPanel_Width; i++){  // i = x (列)
+        for(int j = 0; j < LEDPanel_Height; j++){  // j = y (行)
+            // 像素索引计算: (行 * 宽度 + 列) * 3
+            int pixel_index = (j * LEDPanel_Width + i) * 3;
+            
             if((StartScreen[i] & (1 << j)) != 0){
                 framebuffer[pixel_index] = 20;
                 framebuffer[pixel_index+1] = 20;
@@ -95,9 +88,9 @@ esp_err_t drawStartingScreen(uint8_t *framebuffer){
             }
         }
     };
-    for(uint8_t alpha = 0; alpha < 255; alpha+=5){
+    for(uint8_t alpha = 0; alpha < 255; alpha+=1){
         submitBlendedFrame(framebuffer, black_frame, alpha);
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(5));
     };
     return ESP_OK;
 }

@@ -109,11 +109,9 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
     dsps_bit_rev_fc32(y_cf, N);
     //unsigned int end_b_bitr = dsp_get_cpu_cycle_count();
 
-    esp_task_wdt_reset();
 
     for (int i = 0 ; i < N / 2 ; i++) {
         sum_y[i] = 10 * log10f((y_cf[i * 2 + 0] * y_cf[i * 2 + 0] + y_cf[i * 2 + 1] * y_cf[i * 2 + 1]) / N);
-        esp_task_wdt_reset();
     }
 
     //动态增益计算平均功率
@@ -136,7 +134,7 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
         float clamped_db = fmaxf(sum_y[i], min_db);
         clamped_db = fminf(clamped_db, max_db);
         sum_y[i] = (clamped_db - min_db) / (max_db - min_db);
-        esp_task_wdt_reset();
+        
     }
 
     //决定高度
@@ -160,9 +158,9 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
     for(int i = 0;i < LEDPanel_Width*LEDPanel_Height*3;i++){
         s_pixel_frame_f[i] *= decay_factor;
     }
-    esp_task_wdt_reset();
+    
     //绘制
-    for(int i = 0;i < LEDPanel_Width;i++){
+    for(int i = LEDPanel_Width - 1;i >= 0;i--){
         uint32_t hue = i * (300 / (LEDPanel_Width - 1)); // 左(低频)=0°(红), 右(高频)=300°(紫)
         uint32_t value = 20;//20 + (uint32_t)(80.0f * fminf(fmaxf(sum_y[i], 0.0f), 1.0f));
         uint32_t saturation = 100;
@@ -172,9 +170,9 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
 
         for(int j = 0;j<LEDPanel_Height;j++){
             if((uint8_t)ColumnHeight[i] >= j){
-                s_pixel_frame_f[(i+j*LEDPanel_Width)*3    ] = r * scale; //R,G,B
-                s_pixel_frame_f[(i+j*LEDPanel_Width)*3 + 1] = g * scale;
-                s_pixel_frame_f[(i+j*LEDPanel_Width)*3 + 2] = b * scale;
+                s_pixel_frame_f[(i+(LEDPanel_Height - j - 1)*LEDPanel_Width)*3    ] = r * scale; //R,G,B
+                s_pixel_frame_f[(i+(LEDPanel_Height - j - 1)*LEDPanel_Width)*3 + 1] = g * scale;
+                s_pixel_frame_f[(i+(LEDPanel_Height - j - 1)*LEDPanel_Width)*3 + 2] = b * scale;
             }
         }
     }
@@ -210,5 +208,5 @@ void flash_audio_to_arrow(const float audiosource[N_SAMPLES])
             frame_count = 0;
         }
     }
-    esp_task_wdt_reset();
+    
 }

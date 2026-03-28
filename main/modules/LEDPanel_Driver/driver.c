@@ -199,12 +199,8 @@ esp_err_t submitLEDFrame(const uint8_t *pixels)
 esp_err_t get_latest_frame(uint8_t *TargetFrame)//MUST have enough space
 {
     if (!frame_queue) return ESP_ERR_INVALID_STATE;
-    uint8_t* frame_queue_p = NULL;
-    if (xQueuePeek(frame_queue, &frame_queue_p, 0) != pdTRUE) {
-        return ESP_ERR_NOT_FOUND;  // 队列为空
-    }
 
-    memcpy(TargetFrame,frame_queue_p,sizeof(uint8_t)*FRAME_SIZE);
+    memcpy(TargetFrame,frame_buffer[1],FRAME_SIZE);
 
     return ESP_OK;
 }
